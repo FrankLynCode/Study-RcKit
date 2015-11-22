@@ -3,7 +3,6 @@ package rym.study.study_rckit.activity;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
@@ -21,7 +20,6 @@ import java.io.IOException;
 
 import io.rong.imkit.RongIM;
 import io.rong.imlib.RongIMClient;
-import io.rong.imlib.model.UserInfo;
 import rym.study.study_rckit.R;
 import rym.study.study_rckit.common.Const;
 import rym.study.study_rckit.utils.HttpRequestUtil;
@@ -33,10 +31,10 @@ public class LoginActivity extends AppCompatActivity implements Handler.Callback
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        Log.d(TAG, "onCreate");
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_login);
         initView();
-        initSettings();
     }
 
     private void initView() {
@@ -50,13 +48,10 @@ public class LoginActivity extends AppCompatActivity implements Handler.Callback
                 if (userId.isEmpty()) {
                     Toast.makeText(getApplicationContext(), "UserID can not be empty.", Toast.LENGTH_SHORT).show();
                     return;
+                } else if (userId.compareTo(getLoginInfo(Const.LOGIN_USERID)) == 0) {
+                    connectIMServer(getLoginInfo(Const.LOGIN_TOKEN));
+                    return;
                 }
-
-                // save userId to SharedPreferences for next use.
-                SharedPreferences pre = getSharedPreferences(Const.SharedPrefenrences, Context.MODE_PRIVATE);
-                SharedPreferences.Editor editor = pre.edit();
-                editor.putString("login_userId", userId);
-                editor.commit();
 
                 try {
                     String content = "userId=" + userId + "&name=" + userId + "&portraitUri=";
@@ -76,18 +71,7 @@ public class LoginActivity extends AppCompatActivity implements Handler.Callback
             }
         });
 
-        SharedPreferences pre = getSharedPreferences(Const.SharedPrefenrences, Context.MODE_PRIVATE);
-        ((EditText) findViewById(R.id.edit_user_id)).setText(pre.getString("login_userId", ""));
-    }
-
-    private void initSettings() {
-        RongIM.setUserInfoProvider(new RongIM.UserInfoProvider() {
-            @Override
-            public UserInfo getUserInfo(String userId) {
-                Log.d(TAG, "getUserInfo id = " + userId);
-                return new UserInfo(userId, userId, Uri.parse("https://www.baidu.com/img/bd_logo1.png"));
-            }
-        }, true);
+        ((EditText) findViewById(R.id.edit_user_id)).setText(getLoginInfo(Const.LOGIN_USERID));
     }
 
     @Override
@@ -97,9 +81,12 @@ public class LoginActivity extends AppCompatActivity implements Handler.Callback
         JsonObject jsonObject = parser.parse((String) msg.obj).getAsJsonObject();
         int code = jsonObject.get("code").getAsInt();
         if (code == 200) {
+            String userId = ((EditText) findViewById(R.id.edit_user_id)).getText().toString();
             String token = jsonObject.get("token").getAsString();
+            setLoginInfo(userId, token);
             connectIMServer(token);
         } else {
+            Log.e(TAG, "Http response code = " + code);
             Toast.makeText(getApplicationContext(), "Error! Http response code = " + code, Toast.LENGTH_SHORT).show();
         }
         return false;
@@ -128,5 +115,18 @@ public class LoginActivity extends AppCompatActivity implements Handler.Callback
                 Log.d(TAG, "connectIMServer onError. errorCode = " + errorCode);
             }
         });
+    }
+
+    private void setLoginInfo(String userId, String token) {
+        SharedPreferences pre = getSharedPreferences(Const.SharedPrefenrences, Context.MODE_PRIVATE);
+        SharedPreferences.Editor editor = pre.edit();
+        editor.putString(Const.LOGIN_USERID, userId);
+        editor.putString(Const.LOGIN_TOKEN, token);
+        editor.commit();
+    }
+
+    private String getLoginInfo(String key) {
+        SharedPreferences pre = getSharedPreferences(Const.SharedPrefenrences, Context.MODE_PRIVATE);
+        return pre.getString(key, "");
     }
 }

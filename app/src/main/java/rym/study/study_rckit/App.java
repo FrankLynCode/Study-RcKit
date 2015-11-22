@@ -8,7 +8,7 @@ import android.util.Log;
 import io.rong.imkit.RongIM;
 
 public class App extends Application {
-    private static String TAG = "App";
+    private static final String TAG = "App";
 
     @Override
     public void onCreate() {
